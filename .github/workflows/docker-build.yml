@@ -38,8 +38,5 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          build-args: |
-            VITE_BROWSER_API_URL=https://guangyingzhimeng.dpdns.org
-            VITE_BROWSER_API_PREFIX=/vibe-trading
           cache-from: type=gha
           cache-to: type=gha,mode=max

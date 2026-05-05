@@ -16,6 +16,13 @@ declare global {
   }
 }
 
+function upgradeInsecureApiURL(value: string): string {
+  return value.replace(
+    /^http:\/\/guangyingzhimeng\.dpdns\.org(?=\/new-api(?:\/|$))/,
+    'https://guangyingzhimeng.dpdns.org'
+  )
+}
+
 function normalizeBaseURL(value: string | undefined): string {
   const trimmed = (value ?? '').trim().replace(/\/+$/, '')
   if (!trimmed) return ''
@@ -25,10 +32,16 @@ function normalizeBaseURL(value: string | undefined): string {
     window.location.protocol === 'https:' &&
     trimmed.startsWith('http://guangyingzhimeng.dpdns.org')
   ) {
-    return trimmed.replace(/^http:\/\//, 'https://')
+    return upgradeInsecureApiURL(trimmed)
   }
 
   return trimmed
+}
+
+function normalizeRequestURL(value: unknown): unknown {
+  if (typeof value === 'string') return upgradeInsecureApiURL(value)
+  if (value instanceof URL) return new URL(upgradeInsecureApiURL(value.href))
+  return value
 }
 
 export function getApiBaseURL(): string {
@@ -178,6 +191,9 @@ export function getCommonHeaders(): Record<string, string> {
 
 // Attach user ID header for all requests
 api.interceptors.request.use((config) => {
+  config.baseURL = normalizeBaseURL(config.baseURL)
+  config.url = normalizeRequestURL(config.url) as typeof config.url
+
   const uid = getUserId()
   if (uid) {
     // Custom header for user identification

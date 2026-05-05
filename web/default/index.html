@@ -14,11 +14,40 @@
     />
 
     <meta name="theme-color" content="#fff" />
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests" />
   </head>
 
   <body>
     <script>
       window.__NEW_API_SERVER_URL__ = 'https://guangyingzhimeng.dpdns.org/new-api'
+      ;(() => {
+        const upgradeApiURL = (url) =>
+          typeof url === 'string'
+            ? url.replace(
+                /^http:\/\/guangyingzhimeng\.dpdns\.org(?=\/new-api(?:\/|$))/,
+                'https://guangyingzhimeng.dpdns.org',
+              )
+            : url
+
+        const originalOpen = XMLHttpRequest.prototype.open
+        XMLHttpRequest.prototype.open = function (method, url, ...args) {
+          return originalOpen.call(this, method, upgradeApiURL(url), ...args)
+        }
+
+        const originalFetch = window.fetch
+        window.fetch = (input, init) => {
+          if (typeof input === 'string') {
+            return originalFetch(upgradeApiURL(input), init)
+          }
+          if (input instanceof Request) {
+            const upgradedURL = upgradeApiURL(input.url)
+            if (upgradedURL !== input.url) {
+              return originalFetch(new Request(upgradedURL, input), init)
+            }
+          }
+          return originalFetch(input, init)
+        }
+      })()
     </script>
     <div id="root"></div>
   </body>

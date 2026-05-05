@@ -35,6 +35,9 @@ func CORS() gin.HandlerFunc {
 		"OpenAI-Organization",
 		"X-Request-Id",
 		"New-Api-User",
+		"sec-ch-ua",
+		"sec-ch-ua-mobile",
+		"sec-ch-ua-platform",
 	}
 	return cors.New(config)
 }

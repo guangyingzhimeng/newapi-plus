@@ -57,6 +57,39 @@ export interface Login2FAResponse {
   data?: User
 }
 
+export interface DreamAuthSession {
+  sessionNo: string
+  scene: string
+  qrcode: string
+  expireAt?: string | null
+  appCode?: string | null
+}
+
+export interface DreamAuthStatus {
+  sessionNo: string
+  scene?: string | null
+  status: number
+  statusText: string
+  memberRole?: number | null
+  authTime?: string | null
+  expireAt?: string | null
+  loginReady: boolean
+  expired: boolean
+}
+
+export interface DreamAuthLoginResponse {
+  success: boolean
+  message: string
+  data?: {
+    id?: number
+    username?: string
+    display_name?: string
+    role?: number
+    status?: number
+    group?: string
+  }
+}
+
 export interface ApiResponse {
   success: boolean
   message: string

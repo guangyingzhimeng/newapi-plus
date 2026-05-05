@@ -1,435 +1,203 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { z } from 'zod'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Link } from '@tanstack/react-router'
-import { Loader2, LogIn, KeyRound } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { CheckCircle2, Loader2, QrCode, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import {
-  buildAssertionResult,
-  prepareCredentialRequestOptions,
-  isPasskeySupported as detectPasskeySupport,
-} from '@/lib/passkey'
-import { cn } from '@/lib/utils'
 import { useStatus } from '@/hooks/use-status'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { PasswordInput } from '@/components/password-input'
-import { Turnstile } from '@/components/turnstile'
-import { login, wechatLoginByCode } from '@/features/auth/api'
 import { LegalConsent } from '@/features/auth/components/legal-consent'
-import { OAuthProviders } from '@/features/auth/components/oauth-providers'
-import { loginFormSchema } from '@/features/auth/constants'
+import {
+  completeDreamAuthLogin,
+  createDreamAuthSession,
+  getDreamAuthStatus,
+} from '@/features/auth/api'
+import type {
+  AuthFormProps,
+  DreamAuthSession,
+  DreamAuthStatus,
+} from '@/features/auth/types'
 import { useAuthRedirect } from '@/features/auth/hooks/use-auth-redirect'
-import { useTurnstile } from '@/features/auth/hooks/use-turnstile'
-import { beginPasskeyLogin, finishPasskeyLogin } from '@/features/auth/passkey'
-import type { AuthFormProps } from '@/features/auth/types'
 
-export function UserAuthForm({
-  className,
-  redirectTo,
-  ...props
-}: AuthFormProps) {
+const POLL_INTERVAL_MS = 2000
+const QR_REFRESH_INTERVAL_MS = 60_000
+
+export function UserAuthForm({ redirectTo }: AuthFormProps) {
   const { t } = useTranslation()
-  const [isLoading, setIsLoading] = useState(false)
-  const [wechatCode, setWeChatCode] = useState('')
-  const [agreedToLegal, setAgreedToLegal] = useState(false)
-  const [passkeySupported, setPasskeySupported] = useState(false)
-  const [isPasskeyLoading, setIsPasskeyLoading] = useState(false)
-  const [isWeChatDialogOpen, setIsWeChatDialogOpen] = useState(false)
-  const [isWeChatSubmitting, setIsWeChatSubmitting] = useState(false)
-  const legalConsentErrorMessage = t('Please agree to the legal terms first')
-  const loginFailedMessage = t('Login failed')
-
   const { status } = useStatus()
-  const passkeyLoginEnabled = Boolean(
-    status?.passkey_login ?? status?.data?.passkey_login
-  )
-  const {
-    isTurnstileEnabled,
-    turnstileSiteKey,
-    turnstileToken,
-    setTurnstileToken,
-    validateTurnstile,
-  } = useTurnstile()
-  const { handleLoginSuccess, redirectTo2FA } = useAuthRedirect()
+  const { handleLoginSuccess } = useAuthRedirect()
+  const [session, setSession] = useState<DreamAuthSession | null>(null)
+  const [scanStatus, setScanStatus] = useState<DreamAuthStatus | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [completing, setCompleting] = useState(false)
+  const [agreedToLegal, setAgreedToLegal] = useState(false)
+  const completingRef = useRef(false)
 
   const hasUserAgreement = Boolean(status?.user_agreement_enabled)
   const hasPrivacyPolicy = Boolean(status?.privacy_policy_enabled)
   const requiresLegalConsent = hasUserAgreement || hasPrivacyPolicy
-  const passkeyButtonDisabled =
-    isPasskeyLoading ||
-    !passkeySupported ||
-    (requiresLegalConsent && !agreedToLegal)
-  const hasWeChatLogin = Boolean(status?.wechat_login)
+  const canStart = !requiresLegalConsent || agreedToLegal
 
   useEffect(() => {
-    if (requiresLegalConsent) {
-      setAgreedToLegal(false)
-    } else {
-      setAgreedToLegal(true)
-    }
+    setAgreedToLegal(!requiresLegalConsent)
   }, [requiresLegalConsent])
 
-  useEffect(() => {
-    detectPasskeySupport()
-      .then(setPasskeySupported)
-      .catch(() => setPasskeySupported(false))
-  }, [])
-
-  const form = useForm<z.infer<typeof loginFormSchema>>({
-    resolver: zodResolver(loginFormSchema),
-    defaultValues: {
-      username: '',
-      password: '',
-    },
-  })
-
-  const wechatQrCodeUrl = useMemo(() => {
-    return (
-      status?.wechat_qrcode ||
-      status?.wechat_qr_code ||
-      status?.wechat_qrcode_image_url ||
-      status?.wechat_qr_code_image_url ||
-      status?.wechat_account_qrcode_image_url ||
-      status?.WeChatAccountQRCodeImageURL ||
-      status?.data?.wechat_qrcode ||
-      status?.data?.WeChatAccountQRCodeImageURL ||
-      ''
-    )
-  }, [status])
-
-  async function onSubmit(data: z.infer<typeof loginFormSchema>) {
-    if (requiresLegalConsent && !agreedToLegal) {
-      toast.error(legalConsentErrorMessage)
+  const startSession = async () => {
+    if (!canStart) {
+      toast.error(t('Please agree to the legal terms first'))
       return
     }
 
-    if (!validateTurnstile()) return
-
-    setIsLoading(true)
+    completingRef.current = false
+    setCompleting(false)
+    setLoading(true)
+    setScanStatus(null)
     try {
-      const res = await login({
-        username: data.username,
-        password: data.password,
-        turnstile: turnstileToken,
-      })
+      const res = await createDreamAuthSession('user')
+      if (!res.success || !res.data) {
+        throw new Error(res.message || t('Failed to get QR code'))
+      }
+      setSession(res.data)
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t('Failed to get QR code')
+      )
+      setSession(null)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-      if (res.success) {
-        if (res.data?.require_2fa) {
-          redirectTo2FA()
+  useEffect(() => {
+    if (canStart) {
+      void startSession()
+    }
+    // startSession intentionally reads changing state; canStart is the trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canStart])
+
+  useEffect(() => {
+    if (!session?.sessionNo || completing) return
+    const timer = window.setTimeout(() => {
+      void startSession()
+    }, QR_REFRESH_INTERVAL_MS)
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completing, session?.sessionNo])
+
+  useEffect(() => {
+    if (!session?.sessionNo) return
+    let cancelled = false
+    let timer: number | null = null
+
+    const poll = async () => {
+      try {
+        const next = await getDreamAuthStatus(session.sessionNo)
+        if (cancelled) return
+        if (!next.success || !next.data) {
+          throw new Error(next.message || t('Failed to get login status'))
+        }
+        setScanStatus(next.data)
+
+        if (next.data.loginReady && !completingRef.current) {
+          completingRef.current = true
+          setCompleting(true)
+          const result = await completeDreamAuthLogin(session.sessionNo)
+          if (!result.success) {
+            throw new Error(result.message || t('Login failed'))
+          }
+          await handleLoginSuccess(result.data ?? null, redirectTo)
+          toast.success(t('Welcome back!'))
           return
         }
 
-        await handleLoginSuccess(res.data as { id?: number } | null, redirectTo)
-        toast.success(t('Welcome back!'))
+        if (next.data.expired || next.data.status === 4 || next.data.status === 6) {
+          return
+        }
+      } catch (error) {
+        if (!cancelled) {
+          completingRef.current = false
+          setCompleting(false)
+          setScanStatus((prev) => ({
+            sessionNo: session.sessionNo,
+            status: prev?.status ?? 0,
+            statusText:
+              error instanceof Error
+                ? error.message
+                : t('Failed to get login status'),
+            loginReady: false,
+            expired: false,
+          }))
+        }
+      } finally {
+        if (!cancelled && !completingRef.current) {
+          timer = window.setTimeout(poll, POLL_INTERVAL_MS)
+        }
       }
-    } catch (_error) {
-      // Errors are handled by global interceptor
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleOpenWeChatDialog = () => {
-    if (requiresLegalConsent && !agreedToLegal) {
-      toast.error(legalConsentErrorMessage)
-      return
     }
 
-    setIsWeChatDialogOpen(true)
-  }
-
-  const handleWeChatDialogChange = (open: boolean) => {
-    setIsWeChatDialogOpen(open)
-    if (!open) {
-      setWeChatCode('')
-      setIsWeChatSubmitting(false)
+    timer = window.setTimeout(poll, 400)
+    return () => {
+      cancelled = true
+      if (timer) window.clearTimeout(timer)
     }
-  }
+  }, [handleLoginSuccess, redirectTo, session?.sessionNo, t])
 
-  async function handleWeChatLogin() {
-    if (!wechatCode.trim()) {
-      toast.error(t('Please enter the verification code'))
-      return
-    }
-
-    setIsWeChatSubmitting(true)
-    try {
-      const res = await wechatLoginByCode(wechatCode)
-      if (res?.success) {
-        await handleLoginSuccess(res.data as { id?: number } | null, redirectTo)
-        toast.success(t('Signed in via WeChat'))
-        handleWeChatDialogChange(false)
-      } else {
-        toast.error(res?.message || loginFailedMessage)
-      }
-    } catch (_error) {
-      toast.error(loginFailedMessage)
-    } finally {
-      setIsWeChatSubmitting(false)
-    }
-  }
-
-  async function handlePasskeyLogin() {
-    if (requiresLegalConsent && !agreedToLegal) {
-      toast.error(legalConsentErrorMessage)
-      return
-    }
-
-    if (!passkeySupported) {
-      toast.error(t('Passkey is not supported on this device'))
-      return
-    }
-
-    if (!navigator?.credentials) {
-      toast.error(t('Passkey is not available in this browser'))
-      return
-    }
-
-    setIsPasskeyLoading(true)
-    try {
-      const begin = await beginPasskeyLogin()
-      if (!begin.success) {
-        throw new Error(begin.message || t('Failed to start Passkey login'))
-      }
-
-      const publicKey = prepareCredentialRequestOptions(
-        begin.data?.options ?? begin.data
-      )
-
-      const credential = (await navigator.credentials.get({
-        publicKey,
-      })) as PublicKeyCredential | null
-
-      if (!credential) {
-        toast.info(t('Passkey login was cancelled'))
-        return
-      }
-
-      const assertion = buildAssertionResult(credential)
-      if (!assertion) {
-        throw new Error(t('Invalid Passkey response'))
-      }
-
-      const finish = await finishPasskeyLogin(assertion)
-      if (!finish.success) {
-        throw new Error(finish.message || t('Failed to complete Passkey login'))
-      }
-
-      if (!finish.data) {
-        throw new Error(t('Missing user data from Passkey login response'))
-      }
-
-      await handleLoginSuccess(
-        finish.data as { id?: number } | null,
-        redirectTo
-      )
-      toast.success(t('Signed in with Passkey'))
-    } catch (error: unknown) {
-      if (error instanceof DOMException && error.name === 'NotAllowedError') {
-        toast.info(t('Passkey login was cancelled or timed out'))
-      } else if (error instanceof Error) {
-        toast.error(error.message)
-      } else {
-        toast.error(t('Passkey login failed'))
-      }
-    } finally {
-      setIsPasskeyLoading(false)
-    }
-  }
+  const showSuccess = completing || scanStatus?.loginReady
+  const statusText = completing
+    ? t('Authorization successful, signing in...')
+    : scanStatus?.statusText || t('Please scan with WeChat')
+  const needsManualRefresh =
+    scanStatus?.expired || scanStatus?.status === 4 || scanStatus?.status === 6
 
   return (
-    <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className={cn('grid gap-4', className)}
-        {...props}
-      >
-        {/* Username Field */}
-        <FormField
-          control={form.control}
-          name='username'
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('Username or Email')}</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder={t('Enter your username or email')}
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Password Field */}
-        <FormField
-          control={form.control}
-          name='password'
-          render={({ field }) => (
-            <FormItem className='relative'>
-              <FormLabel>{t('Password')}</FormLabel>
-              <FormControl>
-                <PasswordInput placeholder={t('Enter password')} {...field} />
-              </FormControl>
-              <FormMessage />
-              <Link
-                to='/forgot-password'
-                className='text-muted-foreground absolute end-0 -top-0.5 text-sm font-medium hover:opacity-75'
-              >
-                {t('Forgot password?')}
-              </Link>
-            </FormItem>
-          )}
-        />
-
-        {/* Submit Button */}
-        <Button
-          className='mt-2 w-full justify-center gap-2'
-          disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
-        >
-          {isLoading ? <Loader2 className='animate-spin' /> : <LogIn />}
-          {t('Sign in')}
-        </Button>
-
-        {/* Turnstile */}
-        {isTurnstileEnabled && (
-          <div className='mt-2'>
-            <Turnstile
-              siteKey={turnstileSiteKey}
-              onVerify={setTurnstileToken}
+    <div className='grid gap-5'>
+      <div className='relative mx-auto'>
+        <div className='bg-primary/10 absolute -inset-3 rounded-lg blur-sm' />
+        <div className='bg-background relative flex aspect-square w-[260px] items-center justify-center rounded-lg border p-4 shadow-sm'>
+          {loading ? (
+            <Loader2 className='text-muted-foreground h-8 w-8 animate-spin' />
+          ) : session?.qrcode ? (
+            <img
+              src={session.qrcode}
+              alt={t('WeChat login QR code')}
+              className='h-full w-full object-contain'
             />
-          </div>
+          ) : (
+            <QrCode className='text-muted-foreground h-12 w-12' />
+          )}
+        </div>
+      </div>
+
+      <div className='text-muted-foreground flex min-h-6 items-center justify-center gap-2 text-sm'>
+        {completing ? (
+          <Loader2 className='text-primary h-4 w-4 animate-spin' />
+        ) : showSuccess ? (
+          <CheckCircle2 className='h-4 w-4 text-emerald-500' />
+        ) : (
+          <span className='bg-primary h-2 w-2 rounded-full' />
         )}
+        <span>{statusText}</span>
+      </div>
 
-        <LegalConsent
-          status={status}
-          checked={agreedToLegal}
-          onCheckedChange={setAgreedToLegal}
-          className='mt-1'
-        />
+      <LegalConsent
+        status={status}
+        checked={agreedToLegal}
+        onCheckedChange={setAgreedToLegal}
+      />
 
-        {passkeyLoginEnabled && (
-          <div className='mt-2 space-y-1'>
-            <Button
-              type='button'
-              variant='outline'
-              disabled={passkeyButtonDisabled}
-              onClick={handlePasskeyLogin}
-              className='h-11 w-full justify-center gap-2 rounded-lg'
-            >
-              {isPasskeyLoading ? (
-                <Loader2 className='h-4 w-4 animate-spin' />
-              ) : (
-                <KeyRound className='h-4 w-4' />
-              )}
-              {t('Sign in with Passkey')}
-            </Button>
-            {!passkeySupported && (
-              <p className='text-muted-foreground text-xs'>
-                {t('Passkey is not supported on this device.')}
-              </p>
-            )}
-          </div>
+      <Button
+        type='button'
+        variant={needsManualRefresh || !session ? 'default' : 'outline'}
+        className='h-11 w-full justify-center gap-2 rounded-lg'
+        disabled={loading || completing || !canStart}
+        onClick={() => void startSession()}
+      >
+        {loading ? (
+          <Loader2 className='h-4 w-4 animate-spin' />
+        ) : (
+          <RefreshCw className='h-4 w-4' />
         )}
-
-        {/* OAuth Providers */}
-        <OAuthProviders
-          status={status}
-          disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
-          onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
-          isWeChatLoading={isWeChatSubmitting}
-        />
-      </form>
-
-      {hasWeChatLogin && (
-        <Dialog
-          open={isWeChatDialogOpen}
-          onOpenChange={handleWeChatDialogChange}
-        >
-          <DialogContent className='max-w-sm'>
-            <DialogHeader className='text-left'>
-              <DialogTitle>{t('WeChat sign in')}</DialogTitle>
-              <DialogDescription>
-                {t(
-                  'Scan the QR code to follow the official account and reply with “验证码” to receive your verification code.'
-                )}
-              </DialogDescription>
-            </DialogHeader>
-
-            {wechatQrCodeUrl ? (
-              <div className='flex justify-center'>
-                <img
-                  src={wechatQrCodeUrl}
-                  alt={t('WeChat login QR code')}
-                  className='h-40 w-40 rounded-md border object-contain'
-                />
-              </div>
-            ) : (
-              <p className='text-muted-foreground text-sm'>
-                {t('QR code is not configured. Please contact support.')}
-              </p>
-            )}
-
-            <div className='grid gap-2'>
-              <Label htmlFor='wechat-code'>{t('Verification code')}</Label>
-              <Input
-                id='wechat-code'
-                placeholder={t('Enter the verification code')}
-                value={wechatCode}
-                onChange={(event) => setWeChatCode(event.target.value)}
-                autoComplete='one-time-code'
-              />
-            </div>
-
-            <DialogFooter>
-              <Button
-                type='button'
-                variant='outline'
-                onClick={() => handleWeChatDialogChange(false)}
-                disabled={isWeChatSubmitting}
-              >
-                {t('Cancel')}
-              </Button>
-              <Button
-                type='button'
-                onClick={handleWeChatLogin}
-                disabled={
-                  isWeChatSubmitting ||
-                  !wechatCode.trim() ||
-                  (requiresLegalConsent && !agreedToLegal)
-                }
-                className='gap-2'
-              >
-                {isWeChatSubmitting ? (
-                  <Loader2 className='h-4 w-4 animate-spin' />
-                ) : null}
-                {t('Confirm')}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-    </Form>
+        {session ? t('Refresh QR code') : t('Get QR code')}
+      </Button>
+    </div>
   )
 }

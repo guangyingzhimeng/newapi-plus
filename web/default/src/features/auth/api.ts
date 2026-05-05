@@ -3,6 +3,9 @@ import type {
   LoginPayload,
   LoginResponse,
   Login2FAResponse,
+  DreamAuthSession,
+  DreamAuthStatus,
+  DreamAuthLoginResponse,
   TwoFAPayload,
   RegisterPayload,
   ApiResponse,
@@ -38,6 +41,33 @@ export async function login2fa(payload: TwoFAPayload) {
 // User logout
 export async function logout(): Promise<ApiResponse> {
   const res = await api.get('/api/user/logout')
+  return res.data
+}
+
+// Create DreamAuth WeChat QR login session
+export async function createDreamAuthSession(targetType = 'user') {
+  const res = await api.post<ApiResponse & { data?: DreamAuthSession }>(
+    '/api/user/dreamauth/session',
+    { targetType }
+  )
+  return res.data
+}
+
+// Poll DreamAuth WeChat QR login status
+export async function getDreamAuthStatus(sessionNo: string) {
+  const res = await api.get<ApiResponse & { data?: DreamAuthStatus }>(
+    `/api/user/dreamauth/session/${encodeURIComponent(sessionNo)}/status`,
+    { disableDuplicate: true } as Record<string, unknown>
+  )
+  return res.data
+}
+
+// Consume DreamAuth result and create the normal new-api login session
+export async function completeDreamAuthLogin(sessionNo: string) {
+  const res = await api.post<DreamAuthLoginResponse>(
+    '/api/user/dreamauth/complete',
+    { sessionNo }
+  )
   return res.data
 }
 

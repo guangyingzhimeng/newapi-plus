@@ -16,7 +16,7 @@ version: '3.4' # For compatibility with older Docker versions
 
 services:
   new-api:
-    image: lsy/new-api:latest
+    image: registry.cnbita.com:5000/lsy/new-api:latest
     container_name: new-api
     restart: always
     command: --log-dir /app/logs

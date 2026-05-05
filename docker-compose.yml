@@ -20,8 +20,6 @@ services:
     container_name: new-api
     restart: always
     command: --log-dir /app/logs
-    ports:
-      - "3000:3000"
     volumes:
       - ./data:/data
       - ./logs:/app/logs
@@ -53,7 +51,7 @@ services:
       retries: 3
 
   redis:
-    image: redis:latest
+    image: docker.1ms.run/redis:6
     container_name: redis
     restart: always
     command: ["redis-server", "--requirepass", "newapplusnhge83"]  # ⚠️ IMPORTANT: Change this password in production!
@@ -61,7 +59,7 @@ services:
       - way
 
   postgres:
-    image: postgres:15
+    image: docker.1ms.run/postgres:16
     container_name: postgres
     restart: always
     environment:

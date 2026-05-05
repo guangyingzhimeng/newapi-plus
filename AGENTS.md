@@ -39,6 +39,34 @@ web/             — Frontend themes container
   web/default/src/i18n/ — Frontend internationalization (i18next, zh/en/fr/ru/ja/vi)
 ```
 
+## Build & Deployment
+
+### Frontend (web/default)
+
+The frontend is built using Docker to ensure environment consistency and then deployed to Cloudflare Pages.
+
+**Build Requirements:**
+- Docker
+- Wrangler CLI (via `npx wrangler`)
+
+**Build & Extract Process:**
+1. Navigate to `web/default/`.
+2. Build the Docker image with the required backend API URL:
+   ```bash
+   docker build --build-arg VITE_REACT_APP_SERVER_URL=https://guangyingzhimeng.dpdns.org/new-api -t new-api-frontend .
+   ```
+3. Extract the built `dist` folder to the host:
+   ```bash
+   rm -rf dist && mkdir dist
+   docker run --rm -v $(pwd):/host new-api-frontend cp -r /dist/. /host/dist/
+   ```
+
+**Cloudflare Deployment:**
+Deploy the extracted `dist` folder to the `newapi-plus` project:
+```bash
+npx wrangler pages deploy dist --project-name=newapi-plus --branch main
+```
+
 ## Internationalization (i18n)
 
 ### Backend (`i18n/`)

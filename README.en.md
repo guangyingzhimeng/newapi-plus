@@ -105,7 +105,7 @@
 
 ```bash
 # Clone the project
-git clone https://github.com/QuantumNous/new-api.git
+git clone https://github.com/guangyingzhimeng/newapi-plus.git.git
 cd new-api
 
 # Edit docker-compose.yml configuration
@@ -329,7 +329,7 @@ docker run --name new-api -d --restart always \
 
 ```bash
 # Clone the project
-git clone https://github.com/QuantumNous/new-api.git
+git clone https://github.com/guangyingzhimeng/newapi-plus.git.git
 cd new-api
 
 # Edit configuration

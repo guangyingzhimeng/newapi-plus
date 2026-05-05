@@ -21,7 +21,7 @@
   "author": "QuantumNous",
   "repository": {
     "type": "git",
-    "url": "https://github.com/QuantumNous/new-api"
+    "url": "https://github.com/guangyingzhimeng/newapi-plus.git"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",

@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetRouter(router *gin.Engine, assets ThemeAssets) {
+func SetRouter(router *gin.Engine) {
 	SetApiRouter(router)
 	SetDashboardRouter(router)
 	SetRelayRouter(router)
@@ -22,13 +22,18 @@ func SetRouter(router *gin.Engine, assets ThemeAssets) {
 		frontendBaseUrl = ""
 		common.SysLog("FRONTEND_BASE_URL is ignored on master node")
 	}
-	if frontendBaseUrl == "" {
-		SetWebRouter(router, assets)
-	} else {
-		frontendBaseUrl = strings.TrimSuffix(frontendBaseUrl, "/")
-		router.NoRoute(func(c *gin.Context) {
-			c.Set(middleware.RouteTagKey, "web")
-			c.Redirect(http.StatusMovedPermanently, fmt.Sprintf("%s%s", frontendBaseUrl, c.Request.RequestURI))
-		})
-	}
+	frontendBaseUrl = strings.TrimSuffix(frontendBaseUrl, "/")
+	router.NoRoute(func(c *gin.Context) {
+		c.Set(middleware.RouteTagKey, "web")
+		if frontendBaseUrl == "" {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": gin.H{
+					"message": fmt.Sprintf("Invalid URL (%s %s)", c.Request.Method, c.Request.URL.Path),
+					"type":    "new_api_error",
+				},
+			})
+			return
+		}
+		c.Redirect(http.StatusMovedPermanently, fmt.Sprintf("%s%s", frontendBaseUrl, c.Request.RequestURI))
+	})
 }

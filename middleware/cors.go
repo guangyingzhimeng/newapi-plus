@@ -14,7 +14,7 @@ func CORS() gin.HandlerFunc {
 			c.Header("Access-Control-Allow-Origin", origin)
 			c.Header("Access-Control-Allow-Credentials", "true")
 			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD")
-			c.Header("Access-Control-Allow-Headers", "Origin, Content-Length, Content-Type, Accept, Authorization, Cache-Control, X-Requested-With, X-Api-Key, X-Goog-Api-Key, Anthropic-Version, Anthropic-Beta, OpenAI-Beta, OpenAI-Organization, X-Request-Id, New-Api-User, sec-ch-ua, sec-ch-ua-mobile, sec-ch-ua-platform")
+			c.Header("Access-Control-Allow-Headers", "Origin, Content-Length, Content-Type, Accept, Authorization, Cache-Control, X-Requested-With, X-Api-Key, X-Goog-Api-Key, Anthropic-Version, Anthropic-Beta, OpenAI-Beta, OpenAI-Organization, X-Request-Id, New-Api-User, New-Api-Token, sec-ch-ua, sec-ch-ua-mobile, sec-ch-ua-platform, sec-fetch-dest, sec-fetch-mode, sec-fetch-site, priority")
 			c.Header("Access-Control-Max-Age", "43200")
 		}
 

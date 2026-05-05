@@ -17,13 +17,24 @@ declare global {
 }
 
 function normalizeBaseURL(value: string | undefined): string {
-  return (value ?? '').trim().replace(/\/+$/, '')
+  const trimmed = (value ?? '').trim().replace(/\/+$/, '')
+  if (!trimmed) return ''
+
+  if (
+    typeof window !== 'undefined' &&
+    window.location.protocol === 'https:' &&
+    trimmed.startsWith('http://guangyingzhimeng.dpdns.org')
+  ) {
+    return trimmed.replace(/^http:\/\//, 'https://')
+  }
+
+  return trimmed
 }
 
 export function getApiBaseURL(): string {
   if (typeof window !== 'undefined') {
     const runtimeURL =
-      window.__NEW_API_CONFIG__?.serverUrl || window.__NEW_API_SERVER_URL__
+      window.__NEW_API_SERVER_URL__ || window.__NEW_API_CONFIG__?.serverUrl
     const normalizedRuntimeURL = normalizeBaseURL(runtimeURL)
     if (normalizedRuntimeURL) return normalizedRuntimeURL
   }

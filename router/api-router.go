@@ -57,7 +57,7 @@ func SetApiRouter(router *gin.Engine) {
 		userRoute := apiRouter.Group("/user")
 		{
 			userRoute.POST("/dreamauth/session", middleware.CriticalRateLimit(), controller.CreateDreamAuthSession)
-			userRoute.GET("/dreamauth/session/:sessionNo/status", middleware.CriticalRateLimit(), controller.GetDreamAuthSessionStatus)
+			userRoute.GET("/dreamauth/session/:sessionNo/status", middleware.GlobalAPIRateLimit(), controller.GetDreamAuthSessionStatus)
 			userRoute.POST("/dreamauth/complete", middleware.CriticalRateLimit(), controller.CompleteDreamAuthLogin)
 			userRoute.POST("/register", middleware.CriticalRateLimit(), middleware.TurnstileCheck(), controller.Register)
 			userRoute.POST("/login", middleware.CriticalRateLimit(), middleware.TurnstileCheck(), controller.Login)

@@ -30,17 +30,8 @@ import {
   handleApiError,
   processThinkTags,
   processIncompleteThinkTags,
+  buildApiUrl,
 } from '../../helpers';
-
-const API_SERVER_URL =
-  import.meta.env.VITE_REACT_APP_SERVER_URL ||
-  'https://guangyingzhimeng.dpdns.org/new-api';
-
-const buildApiUrl = (path) => {
-  if (/^https?:\/\//.test(path)) return path;
-  const base = API_SERVER_URL.replace(/\/+$/, '');
-  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
-};
 
 export const useApiRequest = (
   setMessage,

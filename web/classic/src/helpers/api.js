@@ -26,16 +26,15 @@ import {
 import axios from 'axios';
 import { MESSAGE_ROLES } from '../constants/playground.constants';
 
-export let API = axios.create({
-  baseURL: import.meta.env.VITE_REACT_APP_SERVER_URL
-    ? import.meta.env.VITE_REACT_APP_SERVER_URL
-    : '',
-  headers: {
-    'New-API-User': getUserIdFromLocalStorage(),
-    'Cache-Control': 'no-store',
-  },
-});
+export const API_SERVER_URL =
+  import.meta.env.VITE_REACT_APP_SERVER_URL ||
+  'https://guangyingzhimeng.dpdns.org/new-api';
 
+export const buildApiUrl = (path) => {
+  if (/^https?:\/\//.test(path)) return path;
+  const base = API_SERVER_URL.replace(/\/+$/, '');
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+};
 
 function redirectToOAuthUrl(url, options = {}) {
   const { openInNewTab = false } = options;
@@ -48,7 +47,6 @@ function redirectToOAuthUrl(url, options = {}) {
 
   window.location.assign(targetUrl);
 }
-
 
 function patchAPIInstance(instance) {
   const originalGet = instance.get.bind(instance);
@@ -78,18 +76,21 @@ function patchAPIInstance(instance) {
   };
 }
 
-patchAPIInstance(API);
-
-export function updateAPI() {
-  API = axios.create({
-    baseURL: import.meta.env.VITE_REACT_APP_SERVER_URL
-      ? import.meta.env.VITE_REACT_APP_SERVER_URL
-      : '',
+const createAPIInstance = () =>
+  axios.create({
+    baseURL: API_SERVER_URL,
     headers: {
       'New-API-User': getUserIdFromLocalStorage(),
       'Cache-Control': 'no-store',
     },
   });
+
+export let API = createAPIInstance();
+
+patchAPIInstance(API);
+
+export function updateAPI() {
+  API = createAPIInstance();
 
   patchAPIInstance(API);
 }

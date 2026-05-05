@@ -1,22 +1,28 @@
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { useStatus } from '@/hooks/use-status'
 import { AuthLayout } from '../auth-layout'
 import { TermsFooter } from '../components/terms-footer'
-import { SignUpForm } from './components/sign-up-form'
+import { UserAuthForm } from '../sign-in/components/user-auth-form'
 
 export function SignUp() {
   const { t } = useTranslation()
-  const { status } = useStatus()
 
   return (
     <AuthLayout>
       <div className='w-full space-y-8'>
         <div className='space-y-2'>
           <h2 className='text-center text-2xl font-semibold tracking-tight sm:text-left'>
-            {t('Create an account')}
+            {t('WeChat QR code sign up/in')}
           </h2>
-          <p className='text-muted-foreground text-left text-sm sm:text-base'>
+          <p className='text-muted-foreground text-center text-sm sm:text-left sm:text-base'>
+            {t('Please use WeChat to scan the QR code to register or sign in.')}
+          </p>
+        </div>
+
+        <UserAuthForm />
+
+        <div className='text-center text-sm'>
+          <p className='text-muted-foreground'>
             {t('Already have an account?')}{' '}
             <Link
               to='/sign-in'
@@ -24,17 +30,10 @@ export function SignUp() {
             >
               {t('Sign in')}
             </Link>
-            .
           </p>
         </div>
 
-        <SignUpForm />
-
-        <TermsFooter
-          variant='sign-up'
-          status={status}
-          className='text-center'
-        />
+        <TermsFooter variant='sign-up' className='text-center' />
       </div>
     </AuthLayout>
   )

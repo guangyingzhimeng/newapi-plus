@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"os"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"

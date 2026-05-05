@@ -10,35 +10,23 @@ import (
 )
 
 func CORS() gin.HandlerFunc {
-	config := cors.Config{
-		AllowOriginFunc: func(origin string) bool {
-			return true
-		},
-		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
-		AllowHeaders: []string{
-			"Origin",
-			"Content-Length",
-			"Content-Type",
-			"Accept",
-			"Authorization",
-			"Cache-Control",
-			"X-Requested-With",
-			"X-Api-Key",
-			"X-Goog-Api-Key",
-			"Anthropic-Version",
-			"Anthropic-Beta",
-			"OpenAI-Beta",
-			"OpenAI-Organization",
-			"X-Request-Id",
-			"New-Api-User",
-			"sec-ch-ua",
-			"sec-ch-ua-mobile",
-			"sec-ch-ua-platform",
-		},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
+	return func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
+		if origin != "" {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Access-Control-Allow-Credentials", "true")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD")
+			c.Header("Access-Control-Allow-Headers", "Origin, Content-Length, Content-Type, Accept, Authorization, Cache-Control, X-Requested-With, X-Api-Key, X-Goog-Api-Key, Anthropic-Version, Anthropic-Beta, OpenAI-Beta, OpenAI-Organization, X-Request-Id, New-Api-User, sec-ch-ua, sec-ch-ua-mobile, sec-ch-ua-platform")
+			c.Header("Access-Control-Max-Age", "43200")
+		}
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
 	}
-	return cors.New(config)
 }
 
 func splitEnvList(value string) []string {

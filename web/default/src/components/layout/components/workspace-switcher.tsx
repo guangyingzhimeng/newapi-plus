@@ -62,7 +62,6 @@ export function WorkspaceSwitcher({
             ? {
                 ...workspace,
                 name: status?.system_name || defaultName,
-                plan: status?.version || defaultVersion || t('Unknown version'),
               }
             : workspace
         )
@@ -73,11 +72,8 @@ export function WorkspaceSwitcher({
     [
       workspaces,
       status?.system_name,
-      status?.version,
       defaultName,
-      defaultVersion,
       isSuperAdmin,
-      t,
     ]
   )
 

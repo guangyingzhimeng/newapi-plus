@@ -338,9 +338,11 @@ func CompleteDreamAuthLogin(c *gin.Context) {
 }
 
 func findOrCreateDreamAuthUser(c *gin.Context, openID string) (*model.User, error) {
-	common.SysLog(fmt.Sprintf("DreamAuth login openID: %s", openID))
-	adminOpenID := os.Getenv("DREAMAUTH_ADMIN_OPENID")
+	openID = strings.TrimSpace(openID)
+	adminOpenID := strings.TrimSpace(os.Getenv("DREAMAUTH_ADMIN_OPENID"))
 	isAdmin := adminOpenID != "" && openID == adminOpenID
+
+	common.SysLog(fmt.Sprintf("DreamAuth login: openID=[%s], isAdmin=%v (target admin=[%s])", openID, isAdmin, adminOpenID))
 
 	user := &model.User{WeChatId: openID}
 	if model.IsWeChatIdAlreadyTaken(openID) {
@@ -351,8 +353,9 @@ func findOrCreateDreamAuthUser(c *gin.Context, openID string) (*model.User, erro
 			return nil, errors.New("用户已注销")
 		}
 		if isAdmin && user.Role != common.RoleRootUser {
+			common.SysLog(fmt.Sprintf("Upgrading existing user %d to admin based on openID match", user.Id))
 			user.Role = common.RoleRootUser
-			user.Update(false)
+			model.DB.Model(user).Update("role", common.RoleRootUser)
 		}
 		return user, nil
 	}
@@ -373,6 +376,7 @@ func findOrCreateDreamAuthUser(c *gin.Context, openID string) (*model.User, erro
 	user.DisplayName = "DreamAuth User"
 	if isAdmin {
 		user.Role = common.RoleRootUser
+		common.SysLog(fmt.Sprintf("Creating new admin user: %s", user.Username))
 	} else {
 		user.Role = common.RoleCommonUser
 	}

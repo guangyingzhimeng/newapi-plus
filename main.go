@@ -176,12 +176,13 @@ func main() {
 	middleware.SetUpLogger(server)
 	// Initialize session store
 	store := cookie.NewStore([]byte(common.SessionSecret))
+	sameSite := sessionSameSiteMode(os.Getenv("SESSION_COOKIE_SAME_SITE"))
 	store.Options(sessions.Options{
 		Path:     "/",
 		MaxAge:   2592000, // 30 days
 		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteStrictMode,
+		Secure:   sessionCookieSecure(sameSite),
+		SameSite: sameSite,
 	})
 	server.Use(sessions.Sessions("session", store))
 
@@ -206,6 +207,32 @@ func main() {
 	err = server.Run(":" + port)
 	if err != nil {
 		common.FatalLog("failed to start HTTP server: " + err.Error())
+	}
+}
+
+func sessionSameSiteMode(value string) http.SameSite {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "none":
+		return http.SameSiteNoneMode
+	case "lax":
+		return http.SameSiteLaxMode
+	case "strict", "":
+		return http.SameSiteStrictMode
+	default:
+		common.SysLog("invalid SESSION_COOKIE_SAME_SITE, fallback to strict")
+		return http.SameSiteStrictMode
+	}
+}
+
+func sessionCookieSecure(sameSite http.SameSite) bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv("SESSION_COOKIE_SECURE")))
+	switch value {
+	case "true", "1", "yes", "on":
+		return true
+	case "false", "0", "no", "off":
+		return false
+	default:
+		return sameSite == http.SameSiteNoneMode
 	}
 }
 

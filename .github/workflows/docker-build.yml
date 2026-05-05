@@ -38,5 +38,7 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          build-args: |
+            VITE_REACT_APP_SERVER_URL=https://guangyingzhimeng.dpdns.org/new-api
           cache-from: type=gha
           cache-to: type=gha,mode=max

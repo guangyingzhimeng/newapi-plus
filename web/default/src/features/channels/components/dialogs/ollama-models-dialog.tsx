@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Loader2, RefreshCw, Trash2, Download, Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { getCommonHeaders } from '@/lib/api'
+import { apiURL, getCommonHeaders } from '@/lib/api'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -224,7 +224,7 @@ export function OllamaModelsDialog({
     setPullProgress({ status: 'starting', completed: 0, total: 0 })
 
     try {
-      const response = await fetch('/api/channel/ollama/pull/stream', {
+      const response = await fetch(apiURL('/api/channel/ollama/pull/stream'), {
         method: 'POST',
         credentials: 'include',
         headers: {

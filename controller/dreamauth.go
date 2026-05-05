@@ -338,6 +338,10 @@ func CompleteDreamAuthLogin(c *gin.Context) {
 }
 
 func findOrCreateDreamAuthUser(c *gin.Context, openID string) (*model.User, error) {
+	common.SysLog(fmt.Sprintf("DreamAuth login openID: %s", openID))
+	adminOpenID := os.Getenv("DREAMAUTH_ADMIN_OPENID")
+	isAdmin := adminOpenID != "" && openID == adminOpenID
+
 	user := &model.User{WeChatId: openID}
 	if model.IsWeChatIdAlreadyTaken(openID) {
 		if err := user.FillUserByWeChatId(); err != nil {
@@ -345,6 +349,10 @@ func findOrCreateDreamAuthUser(c *gin.Context, openID string) (*model.User, erro
 		}
 		if user.Id == 0 {
 			return nil, errors.New("用户已注销")
+		}
+		if isAdmin && user.Role != common.RoleRootUser {
+			user.Role = common.RoleRootUser
+			user.Update(false)
 		}
 		return user, nil
 	}
@@ -363,7 +371,11 @@ func findOrCreateDreamAuthUser(c *gin.Context, openID string) (*model.User, erro
 		user.Username = "da_" + strconv.Itoa(model.GetMaxUserId()+1)
 	}
 	user.DisplayName = "DreamAuth User"
-	user.Role = common.RoleCommonUser
+	if isAdmin {
+		user.Role = common.RoleRootUser
+	} else {
+		user.Role = common.RoleCommonUser
+	}
 	user.Status = common.UserStatusEnabled
 	user.WeChatId = openID
 

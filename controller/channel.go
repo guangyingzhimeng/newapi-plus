@@ -1811,7 +1811,6 @@ func OllamaPullModelStream(c *gin.Context) {
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
-	c.Header("Access-Control-Allow-Origin", "*")
 
 	key := strings.Split(channel.Key, "\n")[0]
 

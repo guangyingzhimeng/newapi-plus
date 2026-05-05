@@ -13,7 +13,6 @@ import (
 )
 
 func SetRouter(router *gin.Engine) {
-	router.Use(middleware.CORS())
 	SetApiRouter(router)
 	SetDashboardRouter(router)
 	SetRelayRouter(router)

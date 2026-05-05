@@ -9,31 +9,33 @@ import (
 )
 
 func CORS() gin.HandlerFunc {
-	config := cors.DefaultConfig()
-	config.AllowOriginFunc = func(origin string) bool {
-		return true
-	}
-	config.AllowCredentials = true
-	config.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
-	config.AllowHeaders = []string{
-		"Origin",
-		"Content-Length",
-		"Content-Type",
-		"Accept",
-		"Authorization",
-		"Cache-Control",
-		"X-Requested-With",
-		"X-Api-Key",
-		"X-Goog-Api-Key",
-		"Anthropic-Version",
-		"Anthropic-Beta",
-		"OpenAI-Beta",
-		"OpenAI-Organization",
-		"X-Request-Id",
-		"New-Api-User",
-		"sec-ch-ua",
-		"sec-ch-ua-mobile",
-		"sec-ch-ua-platform",
+	config := cors.Config{
+		AllowOriginFunc: func(origin string) bool {
+			return true
+		},
+		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
+		AllowHeaders: []string{
+			"Origin",
+			"Content-Length",
+			"Content-Type",
+			"Accept",
+			"Authorization",
+			"Cache-Control",
+			"X-Requested-With",
+			"X-Api-Key",
+			"X-Goog-Api-Key",
+			"Anthropic-Version",
+			"Anthropic-Beta",
+			"OpenAI-Beta",
+			"OpenAI-Organization",
+			"X-Request-Id",
+			"New-Api-User",
+			"sec-ch-ua",
+			"sec-ch-ua-mobile",
+			"sec-ch-ua-platform",
+		},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
 	}
 	return cors.New(config)
 }

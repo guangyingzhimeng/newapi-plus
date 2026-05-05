@@ -260,7 +260,16 @@ export function useSettingsForm<T extends FieldValues>({
   return {
     form,
     // eslint-disable-next-line react-hooks/refs
-    handleSubmit: form.handleSubmit(handleSubmit),
+    handleSubmit: form.handleSubmit(handleSubmit, (errors) => {
+      // eslint-disable-next-line no-console
+      console.warn('Settings form validation failed:', errors)
+      const firstError = Object.values(flattenValues(errors))[0] as {
+        message?: string
+      }
+      toast.error(
+        firstError?.message || i18next.t('Please check the form for errors')
+      )
+    }),
     handleReset,
     isDirty: form.formState.isDirty,
     isSubmitting: form.formState.isSubmitting,

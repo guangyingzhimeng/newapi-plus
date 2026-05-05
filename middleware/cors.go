@@ -2,10 +2,8 @@ package middleware
 
 import (
 	"strings"
-	"time"
 
 	"github.com/QuantumNous/new-api/common"
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 

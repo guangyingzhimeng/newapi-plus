@@ -11,13 +11,10 @@ import (
 
 func CORS() gin.HandlerFunc {
 	config := cors.DefaultConfig()
-	if allowedOrigins := splitEnvList(os.Getenv("CORS_ALLOWED_ORIGINS")); len(allowedOrigins) > 0 {
-		config.AllowOrigins = allowedOrigins
-		config.AllowCredentials = true
-	} else {
-		config.AllowAllOrigins = true
-		config.AllowCredentials = false
+	config.AllowOriginFunc = func(origin string) bool {
+		return true
 	}
+	config.AllowCredentials = true
 	config.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{
 		"Origin",
